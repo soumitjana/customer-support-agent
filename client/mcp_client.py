@@ -5,23 +5,42 @@ class MCPClient:
     def __init__(self, server):
         self.server = server
         if server == "atlas":
-            # For Atlas we use real external LLM
-            self.llm = LLMService(provider="openai", model="gpt-4o-mini")
+            # For Atlas we use real external LLM - auto-detect available provider
+            provider, model = self._detect_available_provider()
+            self.llm = LLMService(provider=provider, model=model)
         else:
             self.llm = None  # Common server stays mocked
 
-        ABILITY_PROMPTS = {
+        self.ABILITY_PROMPTS = {
             "extract_entities": "Extract product, account, and dates from this query.",
             "enrich_records": "Add SLA and historical ticket info.",
             "clarify_question": "Ask a clarification question for missing details.",
             "extract_answer": "Wait and capture concise response",
-            "knowledge_base_search": "Lookup knowledge base or FAQ",
+            "knowledge_base_search": "Lookup knowledge base or FAQ, If No knowledge base present, pass to human agent or skip",
             "escalation_decision": "Assign to human agent if score <90",
             "update_ticket": " Modify status, fields, priority of ticket",
             "close_ticket": "Mark issue resolved",
             "execute_api_calls": "Trigger CRM/order system actions",
             "trigger_notifications": "Send notifications to users"
         }
+
+
+    def _detect_available_provider(self):
+        """Detect available LLM provider based on environment variables"""
+        import os
+        
+        # Check for Gemini API key first (preferred)
+        if os.environ.get('GEMINI_API_KEY'):
+            return "gemini", "gemini-2.0-flash-exp"
+        
+        # Check for OpenAI API key
+        elif os.environ.get('OPENAI_API_KEY'):
+            return "openai", "gpt-4o-mini"
+        
+        # Default to Gemini with mock fallback
+        else:
+            print("Warning: No API keys found. Using Gemini with mock responses.")
+            return "gemini", "gemini-2.0-flash-exp"
 
 
     def call(self, ability, state):
