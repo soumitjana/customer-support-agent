@@ -1,4 +1,4 @@
-
+#main.py
 from client.mcp_client import MCPClient
 from client.human_client import human_intervention
 from utils.abilities import ABILITIES
@@ -47,7 +47,19 @@ def run_workflow(config, init_state):
                 result = human_intervention(ability, state)
             else:
                 raise ValueError(f"Unknown mode for ability {ability}")
+            
+            # Error handling: check if ability returned an error
+            if isinstance(result.get(ability), dict) and "error" in result[ability]:
+                print(f"[ERROR] Ability {ability} failed: {result[ability]['error']}")
+                state.update(result)  # Still update to preserve error info
+                continue
+            
             state.update(result)
+            
+            # Loop handling: conditional escalation
+            if ability == "escalation_decision" and result.get(ability, {}).get("escalate", False):
+                print("[ESCALATION] Escalating to human agent...")
+               
     return state
 
 final_state = run_workflow(config, init_state)

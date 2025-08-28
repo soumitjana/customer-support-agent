@@ -1,3 +1,4 @@
+#settings.py
 import os
 
 DEFAULT_LLM_PROVIDER = os.getenv("DEFAULT_LLM_PROVIDER", "openai")
