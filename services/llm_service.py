@@ -6,7 +6,7 @@ providers (OpenAI, Anthropic, Gemini) through the LiteLLM library. It includes f
 for caching, async operations, streaming responses, and structured output.
 
 The LLMService class handles provider-specific configurations, API key management,
-response formatting, and error handling in a Django-compatible way.
+response formatting, and error handling.
 """
 
 # Standard library imports
@@ -14,13 +14,9 @@ import hashlib
 import json
 import logging
 import os
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Generator, List, Optional, Union
-
-# Django imports
-from django.conf import settings
-from django.core.cache import cache
-from django.utils import timezone
 
 # Third-party imports
 import openai  # For exception types
@@ -38,7 +34,7 @@ class Provider(Enum):
 
 class LLMService:
     """
-    Minimal LLM service for Django with caching and async support.
+    Minimal LLM service with caching and async support.
     Supports OpenAI, Anthropic, and Gemini models.
     """
     
@@ -62,23 +58,26 @@ class LLMService:
             timeout: Request timeout in seconds (defaults to 30)
             use_cache: Enable response caching (defaults to True)
         """
-        # Use settings defaults if not provided
-        self.provider = Provider(provider or getattr(settings, 'DEFAULT_LLM_PROVIDER', 'gemini'))
-        self.model = model or getattr(settings, 'DEFAULT_LLM_MODEL', 'gemini-2.5-flash')
-        self.temperature = temperature or getattr(settings, 'LLM_DEFAULT_TEMPERATURE', 0.7)
-        self.max_tokens = max_tokens or getattr(settings, 'LLM_DEFAULT_MAX_TOKENS', None)
-        self.timeout = timeout or getattr(settings, 'LLM_TIMEOUT', 30)
+        # Use environment variables or defaults if not provided
+        self.provider = Provider(provider or os.environ.get('DEFAULT_LLM_PROVIDER', 'gemini'))
+        self.model = model or os.environ.get('DEFAULT_LLM_MODEL', 'gemini-2.5-flash')
+        self.temperature = temperature if temperature is not None else float(os.environ.get('LLM_DEFAULT_TEMPERATURE', 0.7))
+        self.max_tokens = max_tokens if max_tokens is not None else (int(os.environ.get('LLM_DEFAULT_MAX_TOKENS')) if os.environ.get('LLM_DEFAULT_MAX_TOKENS') else None)
+        self.timeout = timeout if timeout is not None else int(os.environ.get('LLM_TIMEOUT', 30))
         self.use_cache = use_cache
-        self.cache_ttl = getattr(settings, 'LLM_CACHE_TTL', 3600)
+        self.cache_ttl = int(os.environ.get('LLM_CACHE_TTL', 3600))
+        
+        # Simple in-memory cache
+        self._cache = {}
         
         self._setup_api_keys()
     
     def _setup_api_keys(self):
         """Ensure API keys are in environment for LiteLLM"""
         api_keys = {
-            Provider.OPENAI: getattr(settings, 'OPENAI_API_KEY', None),
-            Provider.ANTHROPIC: getattr(settings, 'ANTHROPIC_API_KEY', None),
-            Provider.GEMINI: getattr(settings, 'GEMINI_API_KEY', None),
+            Provider.OPENAI: os.environ.get('OPENAI_API_KEY', None),
+            Provider.ANTHROPIC: os.environ.get('ANTHROPIC_API_KEY', None),
+            Provider.GEMINI: os.environ.get('GEMINI_API_KEY', None),
         }
         
         if self.provider in api_keys and api_keys[self.provider]:
@@ -147,7 +146,7 @@ class LLMService:
             cache_key = self._get_cache_key(messages, 
                                            temperature=temperature, 
                                            max_tokens=max_tokens)
-            cached = cache.get(cache_key)
+            cached = self._cache.get(cache_key)
             if cached:
                 logger.debug(f"Cache hit: {cache_key[:16]}...")
                 return cached
@@ -180,7 +179,7 @@ class LLMService:
             
             # Cache successful response
             if self.use_cache and cache_key:
-                cache.set(cache_key, result, self.cache_ttl)
+                self._cache[cache_key] = result
             
             return result
             
@@ -225,12 +224,10 @@ class LLMService:
             cache_key = self._get_cache_key(messages,
                                            temperature=temperature,
                                            max_tokens=max_tokens)
-            # Note: cache.aget requires Django 4.1+
-            if hasattr(cache, 'aget'):
-                cached = await cache.aget(cache_key)
-                if cached:
-                    logger.debug(f"Async cache hit: {cache_key[:16]}...")
-                    return cached
+            cached = self._cache.get(cache_key)
+            if cached:
+                logger.debug(f"Async cache hit: {cache_key[:16]}...")
+                return cached
         
         model = self._get_model_string()
         params = {
@@ -252,8 +249,8 @@ class LLMService:
             result = self._format_response(response)
             
             # Cache successful response
-            if self.use_cache and cache_key and hasattr(cache, 'aset'):
-                await cache.aset(cache_key, result, self.cache_ttl)
+            if self.use_cache and cache_key:
+                self._cache[cache_key] = result
             
             return result
             
@@ -276,7 +273,7 @@ class LLMService:
             "provider": self.provider.value,
             "usage": response.usage.model_dump() if response.usage else {},
             "cost": cost,
-            "timestamp": timezone.now().isoformat(),
+            "timestamp": datetime.now().isoformat(),
         }
     
     def _stream_response(self, response_stream) -> Generator:
