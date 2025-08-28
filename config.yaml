@@ -1,0 +1,65 @@
+stages:
+  - name: INTAKE
+    mode: deterministic
+    abilities:
+      - { name: accept_payload, server: common }
+
+  - name: UNDERSTAND
+    mode: deterministic
+    abilities:
+      - { name: parse_request_text, server: common }
+      - { name: extract_entities, server: atlas }
+  
+  - name: PREPARE
+    mode: deterministic
+    abilities:
+      - { name: normalize_fields, server: common }
+      - { name: enrich_records, server: atlas }
+      - { name: add_flags_calculations, server: common }
+
+  - name: ASK
+    mode: human
+    abilities:
+      - { name: clarify_question, server: atlas }
+
+  - name: WAIT
+    mode: deterministic
+    abilities:
+      - { name: extract_answer, server: atlas}
+      - { name: store_answer, server: common }
+
+  - name: RETRIEVE
+    mode: deterministic
+    abilities:
+      - { name: knowledge_base_search, server: atlas }
+      - {name : store_data, server: common }
+
+
+  - name: DECIDE
+    mode: non-deterministic
+    abilities:
+      - { name: solution_evaluation, server: common }
+      - { name: escalation_decision, server: atlas}
+      - { name: update_payload, server: common }
+
+  - name: UPDATE
+    mode: deterministic
+    abilities:
+      - { name: update_ticket, server: atlas }
+      - { name: close_ticket, server: atlas }
+
+  - name: CREATE
+    mode: deterministic
+    abilities:
+      - {name: response_generation, server: common}
+
+  - name: DO
+    mode: deterministic
+    abilities:
+      - { name: execute_api_calls, server: atlas }
+      - { name: trigger_notifications, server: atlas }
+
+  - name: COMPLETE
+    mode: deterministic
+    abilities:
+      - { name: output_payload, server: common}

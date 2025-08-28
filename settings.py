@@ -1,0 +1,8 @@
+import os
+
+DEFAULT_LLM_PROVIDER = os.getenv("DEFAULT_LLM_PROVIDER", "openai")
+DEFAULT_LLM_MODEL = os.getenv("DEFAULT_LLM_MODEL", "gpt-4")
+LLM_DEFAULT_TEMPERATURE = float(os.getenv("LLM_DEFAULT_TEMPERATURE", 0.7))
+LLM_DEFAULT_MAX_TOKENS = int(os.getenv("LLM_DEFAULT_MAX_TOKENS", 1024))
+LLM_TIMEOUT = int(os.getenv("LLM_TIMEOUT", 30))
+LLM_CACHE_TTL = int(os.getenv("LLM_CACHE_TTL", 300))
