@@ -23,14 +23,24 @@ config = {
 }
 
 
-# Input state
+# Friendly greeting from Langie
+print("Hi, I am Langie, your customer support agent. How can I help you today?")
+
+# Prompt user for customer details
+customer_name = input("Please enter your name: ")
+email = input("Please enter your email: ")
+query = input("Please describe your issue: ")
+
+# System assigns priority and ticket_id
 init_state = {
-    "customer_name": "Alice",
-    "email": "alice@example.com",
-    "query": "My app crashes on login",
-    "priority": "high",
-    "ticket_id": 123
+    "customer_name": customer_name,
+    "email": email,
+    "query": query,
+    "priority": "high",  # or use logic to assign
+    "ticket_id": 123       # or use logic to generate unique ID
 }
+
+print("\nInitial State:", init_state)
 
 def mcp_call(server, ability, state):
     client = MCPClient(server.lower())
@@ -63,4 +73,4 @@ def run_workflow(config, init_state):
     return state
 
 final_state = run_workflow(config, init_state)
-print("\nFinal Payload:", final_state)
+print("\nFinal State:", final_state)
