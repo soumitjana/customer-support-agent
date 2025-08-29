@@ -22,26 +22,33 @@ You will store the API key in a `.env` file at the project root (see Quick start
 
 ## Quick start
 
-1. Create a `.env` file in the project root and add one of the following keys depending on your provider:
+1. Create a `.env` file in the project root and add one of the following keys depending on your provider (example):
 
-   - For OpenAI:
-     OPENAI_API_KEY=sk-... 
-
-   - For Gemini:
-     GEMINI_API_KEY=ya29....
+```text
+# .env (at project root)
+OPENAI_API_KEY=sk-...
+# or
+GEMINI_API_KEY=ya29....
+```
 
 2. Create and activate a virtual environment:
 
-   python -m venv .venv
-   .venv\Scripts\Activate
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate
+```
 
 3. Install dependencies:
 
-   pip install -r requirements.txt
+```powershell
+pip install -r requirements.txt
+```
 
 4. Run the agent:
 
-   python main.py
+```powershell
+python main.py
+```
 
 Notes:
 - If no API key is provided, the code prints a warning and continues with mocked responses for Atlas abilities.
