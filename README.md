@@ -35,19 +35,19 @@ GEMINI_API_KEY=ya29....
 
 ```powershell
 python -m venv .venv
-.venv\Scripts\Activate
+.\.venv\Scripts\activate    
 ```
 
 3. Install dependencies:
 
 ```powershell
-pip install -r requirements.txt
+pip install -r .\requirements.txt    
 ```
 
 4. Run the agent:
 
 ```powershell
-python main.py
+python .\main.py       
 ```
 
 Notes:
