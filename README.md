@@ -2,10 +2,13 @@
 
 This repository contains a lightweight LangGraph-based customer support agent named "Langie". It demonstrates a staged workflow orchestration pattern where deterministic, non-deterministic, and human-in-the-loop abilities are composed to process customer support requests.
 
+The project now includes a **Streamlit web interface** for easy interaction with the customer support agent through a user-friendly web UI.
+
 ## Table of Contents
 
 - Prerequisites
 - Quick start
+- Using the Web Interface (Streamlit)
 - Logical flow (stages)
 - File responsibilities
 - How the agent components interact
@@ -44,19 +47,53 @@ python -m venv .venv
 pip install -r .\requirements.txt    
 ```
 
-4. Run the agent:
+4. **Run the agent (CLI version):**
 
 ```powershell
 python .\main.py       
 ```
 
+## Using the Web Interface (Streamlit)
+
+For a more user-friendly experience, you can use the Streamlit web interface:
+
+1. **Start the web interface:**
+
+```powershell
+python .\run_app.py
+```
+
+Or alternatively:
+
+```powershell
+streamlit run app.py
+```
+
+2. **Access the interface:**
+   - Open your web browser and go to `http://localhost:8501`
+   - The web interface will automatically open
+
+3. **Using the interface:**
+   - Enter your name, email, and describe your issue
+   - Click "Start Support Request" to begin the workflow
+   - Follow any prompts for additional information if needed
+   - View the final support ticket summary and response
+
+**Features of the web interface:**
+- Clean, intuitive form for customer input
+- Real-time workflow processing with progress indicators
+- Interactive handling of human-in-the-loop steps
+- Detailed ticket summary and response display
+- Session state management for workflow continuity
+
 Notes:
 - If no API key is provided, the code prints a warning and continues with mocked responses for Atlas abilities.
 - On Windows PowerShell, use the provided activation command above; for other shells adapt accordingly.
+- The web interface provides the same functionality as the CLI but with better user experience.
 
 ## Logical flow (stages)
 
-The orchestrator (`main.py`) runs a sequence of stages defined in `config.yaml`. Each stage contains one or more abilities. Abilities are small functional units that accept the current `state` and return a partial update. Stages in `config.yaml` represent the high-level pipeline:
+The orchestrator runs a sequence of stages defined in `config.yaml`. Each stage contains one or more abilities. Abilities are small functional units that accept the current `state` and return a partial update. Stages in `config.yaml` represent the high-level pipeline:
 
 - INTAKE — capture the incoming payload and initialize state containers
 - UNDERSTAND — parse the request text and extract entities (LLM-powered when using Atlas)
@@ -74,7 +111,13 @@ The orchestrator iterates these stages and passes the evolving `state` between a
 
 ## File responsibilities
 
-- `main.py` — The orchestration entrypoint. Loads the stage configuration, prompts the user for a simple initial payload, and runs the workflow loop which dispatches abilities by mode (auto vs human).
+- `main.py` — The CLI orchestration entrypoint. Loads the stage configuration, prompts the user for a simple initial payload, and runs the workflow loop which dispatches abilities by mode (auto vs human).
+
+- **`app.py`** — **Streamlit web interface for the customer support agent. Provides a user-friendly web UI for submitting support requests and viewing responses.**
+
+- **`workflow_runner.py`** — **Refactored workflow execution logic that can be called from both CLI and web interfaces. Contains the core workflow orchestration without CLI-specific input prompts.**
+
+- **`run_app.py`** — **Simple launcher script to start the Streamlit web interface.**
 
 - `config.yaml` — The canonical skeleton of the agent's staged flow. Each stage lists abilities and the intended mode (deterministic, human, non-deterministic).
 
@@ -88,16 +131,32 @@ The orchestrator iterates these stages and passes the evolving `state` between a
 
 ## How components interact
 
-1. `main.py` builds an initial `state` and reads `config.yaml` (the current project contains an inline config and a single `config.yaml` file which mirrors the stages).
-2. For each ability, `main.py` consults the `ABILITIES` registry in `utils/abilities.py` to determine whether the ability is `auto` (run locally via `COMMON` functions) or `human` (use `human_client`) or `atlas` (LLM-backed via `mcp_client`).
-3. `client/mcp_client.MCPClient` runs `COMMON` functions directly or sends an ability prompt to `services.llm_service.LLMService` when the server is `atlas`.
-4. Atlas responses are parsed safely by `MCPClient.safe_run_ability`, which attempts JSON parsing and graceful degradation for malformed LLM outputs.
-5. The orchestrator updates the `state` with each ability's output and continues. If `escalation_decision` indicates escalation, the orchestrator triggers human intervention.
+1. **Web Interface Flow:** `app.py` collects user input via Streamlit forms, calls `workflow_runner.run_customer_support_workflow()`, handles human-in-the-loop interactions through the web UI, and displays results.
+
+2. **CLI Flow:** `main.py` builds an initial `state` and reads `config.yaml`, then follows the same workflow logic as the web interface.
+
+3. For each ability, the workflow consults the `ABILITIES` registry in `utils/abilities.py` to determine whether the ability is `auto` (run locally via `COMMON` functions) or `human` (use `human_client` for CLI or web UI prompts) or `atlas` (LLM-backed via `mcp_client`).
+
+4. `client/mcp_client.MCPClient` runs `COMMON` functions directly or sends an ability prompt to `services.llm_service.LLMService` when the server is `atlas`.
+
+5. Atlas responses are parsed safely by `MCPClient.safe_run_ability`, which attempts JSON parsing and graceful degradation for malformed LLM outputs.
+
+6. The orchestrator updates the `state` with each ability's output and continues. If `escalation_decision` indicates escalation, the orchestrator triggers human intervention.
 
 ## Next phases
 
 - RAG (Retrieval-Augmented Generation) implementation for `knowledge_base_search` — integrate a document store (e.g., FAISS, Chroma, or a cloud vector DB), add an indexing pipeline, and wire retrieval into Atlas prompts so the LLM can ground answers in KB articles.
-- Front-end UI with streaming messages — implement a small web UI (FastAPI/Flask + WebSockets or a React frontend) to stream model/human messages to operators and customers in real time.
+
+- **Enhanced Streamlit UI features:**
+  - Real-time streaming responses from LLM
+  - Chat-like interface for customer interactions
+  - Agent dashboard for support staff
+  - File upload capabilities for attachments
+  - Integration with external ticketing systems
+
+- Authentication and user management for the web interface
+
+- API endpoints for integration with external systems
 
 ## Notes and tips
 
@@ -105,5 +164,7 @@ The orchestrator iterates these stages and passes the evolving `state` between a
 - The ABILITIES registry in `utils/abilities.py` serves both as documentation and a dispatcher mapping ability names to server/mode settings.
 - When adding a real LLM key, ensure you do not check the `.env` file or any secrets into source control.
 - Add unit tests around `utils/abilities.py` behaviors and `client/mcp_client.safe_run_ability` to increase confidence before enabling live LLM calls.
+- **The Streamlit interface is recommended for most users as it provides a better user experience than the CLI version.**
+- Both CLI and web interfaces use the same underlying workflow logic, ensuring consistency.
 
 This README reflects the current implementation and configuration in the repository. See `Lang_Graph_Agent.docx` for the original task description followed while implementing the agent.
